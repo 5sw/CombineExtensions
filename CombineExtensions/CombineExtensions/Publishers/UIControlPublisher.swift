@@ -14,6 +14,7 @@ import Combine
 final class UIControlSubscription<SubscriberType: Subscriber, Control: UIControl>: Subscription where SubscriberType.Input == Control {
     private var subscriber: SubscriberType?
     private let control: Control
+    private var demand = Subscribers.Demand.none
 
     init(subscriber: SubscriberType, control: Control, event: UIControl.Event) {
         self.subscriber = subscriber
@@ -22,8 +23,7 @@ final class UIControlSubscription<SubscriberType: Subscriber, Control: UIControl
     }
 
     func request(_ demand: Subscribers.Demand) {
-        // We do nothing here as we only want to send events when they occur.
-        // See, for more info: https://developer.apple.com/documentation/combine/subscribers/demand
+        self.demand += demand
     }
 
     func cancel() {
@@ -31,7 +31,10 @@ final class UIControlSubscription<SubscriberType: Subscriber, Control: UIControl
     }
 
     @objc private func eventHandler() {
-        _ = subscriber?.receive(control)
+        guard demand > .none else { return }
+
+        let newDemand = subscriber?.receive(control) ?? .none
+        demand = newDemand + demand - 1
     }
 
     deinit {
